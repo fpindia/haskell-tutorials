@@ -1,4 +1,5 @@
-There are my notes from watching Edward's talk on Lenses[^lens-talk]
+There are my notes from watching [Edward's talk on Lenses](http://www.youtube.com/watch?v=cefnmjtAolY)
+---------------
 
 * * *
 
@@ -43,7 +44,7 @@ data Lens s a = Lens (s -> Store a s)
 
 ### Store is a Costate Comonad Coalgebra
 
-The following is taken from tel's lens tutorial[^lens-tutorial]
+The following section is taken from [tel's lens tutorial](https://www.fpcomplete.com/user/tel/lenses-from-scratch)
 
 A `Comonad w a` is defined as something with operations -
 
@@ -105,5 +106,5 @@ A `Semantic Editor Combinator` (first introduced by Conal Elliott), is something
 type SEC s t a b = (a -> b) -> s -> t
 ```
 
-[^lens-talk]: Edward's talk on lenses on [Video](http://www.youtube.com/watch?v=cefnmjtAolY)
-[^lens-tutorial]: Tel's [lens tutorial](https://www.fpcomplete.com/user/tel/lenses-from-scratch)
+### TO BE CONTINUED ##
+
