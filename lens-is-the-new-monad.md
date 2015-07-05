@@ -10,26 +10,36 @@ There are my notes from watching Edward's talk on Lenses[^lens-talk]
 
 A Lens is a pair of 'Getter' and 'Setter' into a data structure. These operations are named `view` and `set`.
 
-    view :: s -> a
-    set  :: s -> a -> s
+```haskell
+view :: s -> a
+set  :: s -> a -> s
+```
 
 Where `s` is the 'whole' and `a` is the 'part'.
 
 Combined we get -
 
-    data Lens s a = Lens (s -> a) (s -> a -> s)
+```haskell
+data Lens s a = Lens (s -> a) (s -> a -> s)
+```
 
 We can combine the common parameter `s` to get -
 
-    data Lens s a = Lens (s -> (a, a -> s))
+```haskell
+data Lens s a = Lens (s -> (a, a -> s))
+```
 
 The structure `(a, a -> s)` is also known as a `Store` -
 
-    data Store a s = Store a (a -> s)
+```haskell
+data Store a s = Store a (a -> s)
+```
 
 So then we have -
 
-    data Lens s a = Lens (s -> Store a s)
+```haskell
+data Lens s a = Lens (s -> Store a s)
+```
 
 ### Store is a Costate Comonad Coalgebra
 
@@ -37,32 +47,44 @@ The following is taken from tel's lens tutorial[^lens-tutorial]
 
 A `Comonad w a` is defined as something with operations -
 
-    extract   :: w a -> a
-    duplicate :: w a -> w (w a)
+```haskell
+extract   :: w a -> a
+duplicate :: w a -> w (w a)
+```
 
 It turns out that `Store` is a `Comonad` -
 
-    instance Comonad (Store a) where
-      extract (Store a f) = f a
-      duplicate (Store a f) = Store a (\b -> Store b f)
+```haskell
+instance Comonad (Store a) where
+  extract (Store a f) = f a
+  duplicate (Store a f) = Store a (\b -> Store b f)
+```
 
 Now `Store` is also called `Costate Comonad` as it is dual to `State`. Traditionally, a co-something is something with the arrows reversed. However in this case, we reverse `(,)` and `(->)`. So calling Store as Costate is a slight misnomer.
 
-    State == (a -> (a ,  s))
-    Store == (a ,  (a -> s))
+```haskell
+State == (a -> (a ,  s))
+Store == (a ,  (a -> s))
+```
 
 `Store` is also a `Functor` in the same way `(->)` is a Functor -
 
-    instance Functor (Store a) where
-      fmap g (Store a f) = Store a (g . f)
+```haskell
+instance Functor (Store a) where
+  fmap g (Store a f) = Store a (g . f)
+```
 
 A `Coalgebra` for a `Functor` is simply something that constructs the Functor from a 'seed' -
 
-    type Coalg f a = a -> f a
+```haskell
+type Coalg f a = a -> f a
+```
 
 So the Coalgebra for Store is the same as Lens -
 
-    Coalg (Store a) s == s -> Store a s == Lens s a
+```haskell
+Coalg (Store a) s == s -> Store a s == Lens s a
+```
 
 So effectively Lens is a `Store Coalgebra` or a `Costate Comonad Coalgebra`.
 
@@ -79,9 +101,9 @@ These problems are solved in the Lens library using something called Van Laarhov
 
 A `Semantic Editor Combinator` (first introduced by Conal Elliott), is something that 'modifies' something deep within a structure.
 
-    type SEC s t a b = (a -> b) -> s -> t
-
-
+```haskell
+type SEC s t a b = (a -> b) -> s -> t
+```
 
 [^lens-talk]: Edward's talk on lenses on [Video](http://www.youtube.com/watch?v=cefnmjtAolY)
 [^lens-tutorial]: Tel's [lens tutorial](https://www.fpcomplete.com/user/tel/lenses-from-scratch)
