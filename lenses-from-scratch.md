@@ -141,13 +141,25 @@ These problems are solved in the Lens library using something called "Van Laarho
 
 Note: This section borrows from [Conal's original blog post on Semantic Editors Combinators](http://conal.net/blog/posts/semantic-editor-combinators)
 
-A `Semantic Editor Combinator` (first introduced by Conal Elliott), is something that 'modifies' something deep within a structure.
+A Semantic Editor Combinator (first introduced by Conal Elliott), is something that 'modifies' something deep within a structure.
+
+The original notion of "modifying" things in functional programming is the `Functor`. It allows us to take a 'container' and replace its 'contents' with something else.
+
+```haskell
+fmap :: Functor f => (a -> b) -> f a -> f b
+```
+
+Here `f a` is the whole and `a` is the part which we replace with `b`. The resulting structure is `f b`.
+
+However this scheme only works when we have a data type with the shape `f a`, i.e. with the part to be replaced as the last parameter of the whole. Similarly the shape of the return data type is also constrained to `f b`.
+
+We can generalise this pattern using "Semantic Editor Combinators".
 
 ```haskell
 type SEC s t a b = (a -> b) -> s -> t
 ```
 
-Where again `s` is the 'whole' and `a` is the 'part'. When `a` is replaced by `b`, the original `s` becomes a `t`. The types here are kept as general as possible to apply to all situations. In specific instances, `s` and `t` usually relate to each other in some way.
+Where again `s` is the 'whole' and `a` is the 'part'. When `a` is replaced by `b`, the original `s` becomes a `t`. The types here are kept as general as possible to apply to all situations. In specific instances, `s` and `t` usually relate to each other in some way (such as `f a` and `f b`).
 
 ### Simple Examples
 
@@ -158,7 +170,7 @@ first :: (a -> b) -> (a,x) -> (b,x)
 second :: (a -> b) -> (x,a) -> (x,b)
 ```
 
-Looking at the definition of `SEC`, these can be represented as -
+Looking at the definition of SEC, these can be represented as -
 
 ```haskell
 first :: SEC (a,x) (b,x) a b
@@ -179,8 +191,6 @@ argument :: SEC (a -> c) (b -> c) b a
 argument = flip (.)
 ```
 
-### The power of the dot
-
 Semantic editor combinators don't necessarily act on only one 'point' in a 'structure'.
 
 For example we can write a combinator to modify all elements of a list
@@ -190,26 +200,33 @@ element :: (a -> b) -> [a] -> [b]
 element = fmap
 ```
 
-This `fmap` is a very general purpose SEC that can modify parts of *any* `Functor` instance.
+### Fmap as an SEC
 
-For example it can also be used in place of `second` (thanks to the functor instance for tuples) or `result` (thanks to the functor instance for functions).
+SEC are strictly more powerful than Functors. This is evident from the fact that `fmap` itself is an SEC. `fmap` is a rather broad SEC that can modify parts of any `Functor` instance.
 
 ```haskell
 fmap :: Functor f => SEC (f a) (f b) a b
 ```
+
+For example it can also be used in place of `second` (thanks to the functor instance for tuples) or `result` (thanks to the functor instance for functions).
+
+### The power of the dot - SEC composition
+
+All SEC can be composed using simple function composition. This is `(.)` from the Prelude, and not the one from `Data.Category`.
+
 Multiple `fmap`s can be composed -
 
 ```haskell
 fmap . fmap . fmap :: (Functor f, Functor g, Functor h) => SEC (f (g (h a))) (f (g (h b))) a b
 ```
 
-Turns out that all SEC compose in a similar fashion. For example (.) -
+`(.)` itself is an SEC and can be composed -
 
 ```haskell
 (.) . (.) . (.) :: SEC (c -> d -> e -> a) -> (c -> d -> e -> b) a b
 ```
 
-In fact any number of different SEC can be freely composed using (.) to modify deeply embedded values in a typesafe manner -
+In fact different SEC can be freely composed using (.) to modify deeply embedded values in a typesafe manner -
 
 ```haskell
 deep :: SEC (a, b -> [c]) (a, b -> [d]) c d
@@ -218,42 +235,84 @@ deep = second . result . element
 
 Where the definition can be read intuitively as - "with the second element of the pair, then with the result of the function, modify all the elements of the list"
 
-This definition seems to have the order of the functions reversed. Intuitively whenever we compose functions together in Haskell, the operation we perform first comes at the end. However with SEC (and with lenses), the order of functions is reversed (similar to the record update syntax in procedural languages).
+This definition seems to have reversed the order of the 'operations'. Intuitively whenever we compose functions together in Haskell, the operation we perform first comes at the end. However with SEC (and with lenses), the order of functions is reversed, and happens to match the record update syntax in procedural languages.
 
-### Traversable
+### traverse as an SEC
 
 Another example of an SEC is `Traversable`.
 
-A `Traversable` gives us a function `traverse` which can traverse the structure from left to right.
+A `Traversable` gives us a function `traverse` which can traverse the structure from left to right. *Any* loop can be represented as an application of `traverse`.
 
 ```haskell
 traverse :: (Applicative m, Traversable f) => (a -> m b) -> f a -> m (f b)
 ```
 
-Note: When `m` is a `Monad` and `f` is a List then `traverse` is the same as `mapM`
+Note: When `m` is a `Monad` and `f` is a List (`[]`) then `traverse` is the same as `mapM`
 
-`Traverse` can be composed in a similar fashion to `fmap` and is an `SEC` -
+`traverse` can also be composed with `(.)` and is an SEC -
 
 ```haskell
 traverse :: (Traversable f, Applicative m) => SEC (f a) (f b) a (m b)
 traverse . traverse :: (Traversable f, Traversable g, Applicative m) => SEC (f (g a)) (f (g b)) a (m b)
 ```
 
-Note that while this is an `SEC`, unlike the other `SEC` we saw, the "modification function" passed to the SEC is of the type `a -> m b` instead of the usual `a -> b`. This means it doesn't compose well with other SEC. We solve this problem with `Setter`, which is described in the next section.
+Note that while this is an SEC, unlike the other SEC we saw, the "modification function" passed to the SEC is of the type `a -> m b` instead of the usual `a -> b`.
+
+We can further generalise `traverse` as explained in the below section.
 
 
 ## Setters
 
-### Solving the Traversable problem
+### A brief recap of SECs
 
-All `Traversable` are also `Functor`, this can be easily seen when `m` is `Identity`. Hence `Traversable` has `Functor` as a superclass. To get an `fmap` for a `Traverse`, use `fmapDefault`.
+We saw in the previous section how to generalise `fmap` to `SEC`.
+
+Using `fmap`, given a transformation `a -> b`, we can derive `f a -> f b`.
+
+```haskell
+fmap :: Functor f => (a -> b) -> f a -> f b
+```
+
+However we can get rid of the `Functor` relationship between the input `f a` and the output `f b`, by replacing `f a` and `f b` with arbitrary type variables `s` and `t` respectively. This gave us the type of `SEC` -
+
+```haskell
+type SEC s t a b = (a -> b) -> s -> t
+```
+
+### From traverse to a Setter
+
+Now let's recall the type of `traverse` -
+
+```haskell
+traverse :: (Applicative m, Traversable f) => (a -> m b) -> f a -> m (f b)
+```
+
+This is kind of like an SEC (with `s` == `f a` and `t` == `f b`) but with `m` mucking things up. Let's name this new type a `Setter`.
+
+```haskell
+type Setter s t a b = Applicative m => a -> m b -> s -> m t
+```
+
+And the type of traverse becomes -
+
+```haskell
+traverse :: Functor f => Setter (f a) (f b) a b
+```
+
+These Setter are used to generalise "deep modification" of data structure in the same way as SEC did. Setters are great introduction to Lenses because they have a similar shape and exhibit similar properties.
+
+So how can we use Setters? For that we look at functions that use `traverse` and generalise them for Setters.
+
+### Generalising `fmapDefault` to 'over'
+
+All `Traversable` are also `Functor`, this can be easily seen when `m` is `Identity`. And hence `Traversable` has `Functor` as a superclass. `Data.Traversable` includes a function called `fmapDefault` which uses `traverse` to derive an `fmap`.
 
 ```haskell
 fmapDefault :: Traversable f => (a -> b) -> f a -> f b
 fmapDefault = runIdentity . traverse (Identity . f)
 ```
 
-This allows you to write code like -
+*Note:* This allows us to derive a `Functor` instance from a `Traversable` instance using code similar to the following -
 
 ```haskell
 instance Functor Foo where
@@ -263,26 +322,7 @@ instance Traversable Foo where
   traverse = ...
 ```
 
-Within `fmapDefault` the type of `traverse` is specialised to use the `Identity` functor -
-
-```haskell
-traverse :: (a -> Identity b) -> f a -> Identity (f b)
-```
-
-This is kind of like an `SEC` (with `s` == `f a` and `t` == `f b`) but with `Identity` mucking things up.
-
-So let's generalise this type in the same manner we generalised `SEC`.
-
-```haskell
-type Setter s t a b = (a -> Identity b) -> s -> Identity t
-traverse :: Setter s t a b
-```
-
-These `Setter` are used to generalise "deep modification" of data structure in the same way as `SEC` did. Let's see how.
-
-### 'over' and 'mapped'
-
-In `fmapDefault` if we make `traverse` an argument instead of hard coding it, we get a different function. We call this `over`.
+If we pass the Setter used to `fmapDefault` instead of always using `traverse`, we get a function we call `over`.
 
 ```haskell
 over :: Setter s t a b -> (a -> b) -> s -> t
@@ -290,19 +330,20 @@ over :: Setter s t a b -> SEC s t a b
 over t f = runIdentity . t (Identity . f)
 ```
 
-Which means that `over` can take a `Setter` and generate an `SEC` out of it. Which can then be used as before.
+Which means that `over` can take a Setter and generate an SEC out of it. Which can then be used as before.
 
-For example, let's see if we can generate `fmap` using `over` -
+`over traverse` is basically `fmap` but works only on Traversables. Let's derive a new Setter (we'll call it `mapped`) so that `over mapped` will work on all Functors.
 
-We need a `Setter` where `s` is `f a` and `t` is `f b`. Let's call this function `mapped`.
+Note that within `over` the type of the Setter is specialised to use `Identity` -
+
+```haskell
+type Setter s t a b = (a -> Identity b) -> f a -> Identity (f b)
+```
+
+The definition for `mapped` can then be derived by carefully canceling out the effects of `runIdentity` from the definition of `over`.
 
 ```haskell
 mapped :: Functor f => Setter (f a) (f b) a b
-```
-
-Its definition can be derived by carefully canceling out the effects of `runIdentity` from the definition of `over`. 
-
-```haskell
 mapped f = Identity . fmap (runIdentity . f)
 ```
 
@@ -311,52 +352,31 @@ And
 ```haskell
 over mapped f == runIdentity . mapped (Identity . f)
               == runIdentity . Identity . fmap (runIdentity . Identity . f)
-              == fmap f -- Because runIdentity . Identity == id
+              == fmap f
 ```
 
-`Setter` compose just like `SEC` -
+Why would you use `over mapped` instead of `fmap`? Because Setters compose just like SEC. So for example, you can modify data embedded within several functors by using `mapped.mapped` or `mapped.mapped.mapped` etc. -
 
 ```haskell
 mapped :: Setter (f a) (f b) a b
+==>
 mapped :: (a -> Identity b) -> (f a) -> (Identity (f b))
 ==>
 mapped . mapped :: (a -> Identity b) -> (f (g a)) -> (Identity (f (g b)))
-                :: Setter (f (g a)) (f (g b)) a b
+==>
+mapped . mapped :: Setter (f (g a)) (f (g b)) a b
+
+over mapped (+1) [1,2,3] ==> [2,3,4]
+over (mapped.mapped) (+1) [[1,2],[3]] ==> [[2,3],[4]]
 ```
 
-### Using Setters
-
-`Setters` can be used to modify data in a `Functor` -
-
-```haskell
-over mapped (+1) [1,2,3] == [2,3,4]
-over (mapped.mapped) (+1) [[1,2],[3]] == [[2,3],[4]]
-```
-
-`Setter` can even change the type of the data structure, unlike the formulation in 'data-lens'
+Setter can even change the type of the data structure -
 
 ```haskell
 over (mapped.mapped) length [["hello", "world"], ["iii"]] = [[5,5], [3]]
 ```
 
-`Setter` can easily be created for any datatype.
-
-For example, `Text` is not a `Functor` because it can not contain values of arbitrary types. However we can easily create a `Setter` by simply converting it to a String and back -
-
-```haskell
-chars :: (Char -> Identity Char) ‐> Text -> Identity Text
-chars f = fmap pack . mapped f	
-```
-
-And then we can compose this with other setters for varied functionality -
-
-```haskell
-over chars :: (Char ‐> Char) ‐> Text ‐> Text
-over (mapped.chars) :: Functor f => (Char ‐> Char) -> f Text ‐> f Text
-over (traverse.chars) :: Traversable f => (Char ‐> Char) ‐> f Text ‐>	f Text
-```
-
-Just like `chars`, it's possible to have other setters that aren't functors -
+Using composition, Setters can easily be created for any datatype. For example, it's possible to have other setters that aren't functors -
 
 ```haskell
 both :: Setter (a,a) (b,b) a b
@@ -375,12 +395,80 @@ over both (+1) (2,3) = (3,4)
 over (mapped.both) length (("hello", "world"), ("iii", "iiii")) = ((5,5), (3,4))
 ```
 
+Another example - `Text` is not a `Functor` because it can not contain values of arbitrary types. However we can easily create a Setter by simply converting it to a String and back -
 
-### Setter Laws
+```haskell
+chars :: (Char -> Identity Char) ‐> Text -> Identity Text
+chars f = fmap pack . mapped f
+```
 
-`Setter` are very similar to `Functor` and must follow similar laws -
+And then we can compose this with other setters for varied functionality -
 
-##### 1. If you `fmap`/`over` something with `id` it's like you did nothing at all
+```haskell
+over chars :: (Char ‐> Char) ‐> Text ‐> Text
+over (mapped.chars) :: Functor f => (Char ‐> Char) -> f Text ‐> f Text
+over (traverse.chars) :: Traversable f => (Char ‐> Char) ‐> f Text ‐>	f Text
+```
+
+### Generalising `mapM` to 'mapMOf
+
+`mapM` is defined in `Data.Traversal` in terms of `traverse`. 
+
+```haskell
+mapM :: (Traversable f, Monad m) => (a ‐> m b) ‐> f a ‐> m (f b)
+mapM f = unwrapMonad . traverse (WrapMonad . f)
+```
+
+`WrapMonad` is a simple wrapper over Monads, and is used here because for all `Monad m`, We have `Traversable (WrapMonad m)`.
+
+Now as we did with `fmapDefault`, we can parameterise `mapM` to take a Setter instead. Let's call this `mapMOf` -
+
+```haskell
+mapMOf :: Monad m => Setter s t a b -> (a -> m b) -> s -> m t
+mapMOf l f = unwrapMonad . l (WrapMonad . f)
+```
+
+Of course, just like `over`, we can use `mapMOf` with other Setters.
+
+For example, here's a way of generating all pairs of integers from 1 - 4.
+
+```haskell
+mapMOf both (\x -> [x..x+3]) (1,1) ==> [(1,1),(1,2),(1,3), ... ,(4,2),(4,3),(4,4)]
+```
+
+### Syntactic "sugar" using `&` in Control.Lens
+
+If we want to 'set' some value directly instead of modifying it (i.e. ignoring the old value altogether), we can use `set`
+
+```haskell
+set :: Setter s t a b -> b -> s -> t
+```
+
+So
+
+```haskell
+set mapped 2 [1,2,3] = [2,2,2]
+set (mapped.mapped) 2 [[1,2],[3]] = [[2,2], [2]]
+```
+
+Another useful operator is `&` which is just flipped `$`. This works really well with the reversed function order with lenses to chain multiple lens "modifications" on a single data structure. For example -
+
+```haskell
+(1,2,3,4) & _2 .- "hello" & _3 .- "world"
+===>
+(1,"hello", "world",4)
+```
+
+Where `.-` is simply an alias for `set`.
+
+There are also a *LOT* of operators and other combinators that are too numerous to cover here.
+
+
+### Digression 2: Setter Laws
+
+Setter are very similar to `Functor` and must follow similar laws -
+
+##### 1. If we `fmap`/`over` something with `id` it's like we did nothing at all
 
 For functors -
 
@@ -394,7 +482,7 @@ For setters -
 over l id = id
 ```
 
-##### 2. If you `fmap`/`over` `f` and then `g`, it's like `fmap`/`over` `(f . g)`
+##### 2. If we `fmap`/`over` `f` and then `g`, it's like `fmap`/`over` `(f . g)`
 
 For functors -
 
@@ -411,9 +499,6 @@ over l f . over l g = over l (f . g)
 Note: Unlike functors, the second law of setters doesn't automatically follow from the first.
 
 
-### Other Setters
-
-
+### 
 
 ### TO BE CONTINUED ##
-

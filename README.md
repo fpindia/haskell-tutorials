@@ -1,4 +1,4 @@
-# Bits of pieces of a pedagogical nature
+# Haskell Tutorials
 
 ## Lens is the new Monad
 
