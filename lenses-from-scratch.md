@@ -290,7 +290,7 @@ traverse :: (Applicative m, Traversable f) => (a -> m b) -> f a -> m (f b)
 This is kind of like an SEC (with `s` == `f a` and `t` == `f b`) but with `m` mucking things up. Let's name this new type a `Setter`.
 
 ```haskell
-type Setter s t a b = Applicative m => a -> m b -> s -> m t
+type Setter s t a b = Applicative m => (a -> m b) -> s -> m t
 ```
 
 And the type of traverse becomes -
