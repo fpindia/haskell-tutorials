@@ -402,6 +402,8 @@ chars :: (Char -> Identity Char) ‐> Text -> Identity Text
 chars f = fmap pack . mapped f
 ```
 
+However note that while using lenses with `Text` gives you a beautiful API, you lose performance. This is because `Data.Text` is very performance conscious and uses *fusion* to achieve this performance. So if you want performant code you should use the (very extensive) API provided by `Data.Text`.
+
 And then we can compose this with other setters for varied functionality -
 
 ```haskell
