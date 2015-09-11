@@ -18,3 +18,5 @@ These are tutorials planned for a later date -
 2. REST API Generation
 3. Free Monads
 4. Reactive Programming
+5. Dependent types
+6. Purely functional language interpreter
