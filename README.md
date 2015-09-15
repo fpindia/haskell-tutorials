@@ -24,3 +24,5 @@ These are tutorials planned for a later date -
 4. Reactive Programming
 5. Dependent types
 6. Purely functional language interpreter
+7. FGL Library (see http://jelv.is/blog/Generating-Mazes-with-Inductive-Graphs/)
+
