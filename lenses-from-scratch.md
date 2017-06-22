@@ -128,9 +128,12 @@ set l (set l s a) b = set l s b
 
 While this definition of a lens works fine (it's the approach used by data-lens package), it has two problems -
 
-1. It is not possible to write a Lens that changes the type of the data structure
-2. To use a Lens, we have to import the Store data structure and associated libraries
-3. We can compose lenses using the Data.Category (.) but to use it we need to hide the one from prelude
+1. Ease of use -
+
+    1. To use a Lens, we have to import the Store data structure and associated libraries
+    2. We can compose lenses using the Data.Category (.) but to use it we need to hide the one from prelude which only works on plain functions.
+
+2. It is not possible to write a Lens that changes the type of the data structure
 
 These problems are solved in the Lens library using something called "Van Laarhoven Lenses".
 
