@@ -260,6 +260,9 @@ Note that while this is an SEC, unlike the other SEC we saw, the "modification f
 
 We can further generalise `traverse` as explained in the below section.
 
+* * *
+# NOTE: Making the leap from SEC to Lens gets a bit messy. I need to reorganise the sections below.
+* * *
 
 ## Setters
 
