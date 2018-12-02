@@ -1,11 +1,10 @@
-This is a comprehensive lens tutorial that is distilled from watching [Edward's talk on Lenses](http://www.youtube.com/watch?v=cefnmjtAolY)
----------------
-
 * * *
 
 # Lenses From Scratch
 
-## The data-lens approach
+* * *
+
+# The data-lens approach
 
 ### Introducing Lens and Store datatypes
 
@@ -42,7 +41,9 @@ So then we have -
 data Lens s a = Lens (s -> Store a s)
 ```
 
-This is the approach used by the `data-lens` library, but *NOT* the `lens` library.
+`Lens` has a `Category` instance. So you can compose them using `Category.(.)`.
+
+**This is the approach used by the `data-lens` library, but *NOT* the `lens` library.**
 
 ### Digression 1 - Lens is a "Costate Comonad Coalgebra"
 
@@ -135,10 +136,10 @@ While this definition of a lens works fine (it's the approach used by data-lens 
 
 2. It is not possible to write a Lens that changes the type of the data structure
 
-These problems are solved in the Lens library using something called "Van Laarhoven Lenses".
+These problems are solved in the Lens library using concepts from semantic editor combinators.
 
 
-## Semantic Editor Combinators
+# Semantic Editor Combinators
 
 ### Basic idea
 
@@ -263,9 +264,11 @@ Note that while this is an SEC, unlike the other SEC we saw, the "modification f
 
 We can further generalise `traverse` as explained in the below section.
 
-* * *
-# NOTE: Making the leap from SEC to Lens gets a bit messy. I need to reorganise the sections below.
-* * *
+Also note that since `fmap` and `traverse` are both SECs, you can freely combine them. However they start doing strange things so you have to be careful. It's also one of the reasons why the Lens library uses a slightly different formulation from SECs.
+
+# Lens Library
+
+Finally let's look at the actual implementation in the Lens library. It uses something called "Van Laarhoven Lenses". A good way to build intuition for them is by looking at Setters.
 
 ## Setters
 
